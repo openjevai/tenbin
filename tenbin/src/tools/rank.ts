@@ -203,7 +203,7 @@ export function makeRank(gateway: TypeSafeGateway, maxTokensPerCall: number, con
         scores = await rankChoice(args.candidates);
       }
     } catch (err) {
-      return errorResult(describeError(err));
+      return errorResult(describeError(err, { provider: gateway.provider, baseUrl: gateway.baseUrl }));
     }
 
     let ranked = args.candidates

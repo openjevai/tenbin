@@ -8,7 +8,7 @@ import type { Questions } from "../types.js";
 export const evaluateInput = {
   state: stateSchema,
   questions: questionsSchema,
-  model: z.string().optional().describe("Model id or alias; defaults to TYPESAFE_DEFAULT_MODEL (jev-latest)"),
+  model: z.string().optional().describe("Model id or alias; defaults to the provider's default model (jev-latest for TypeSafe, openjev for OpenJEV)"),
 };
 
 export function lintWarnings(questions: Questions, state: unknown, maxTokensPerCall: number): { blocked: string[]; warnings: string[] } {
@@ -27,7 +27,7 @@ export function makeEvaluate(gateway: TypeSafeGateway, maxTokensPerCall: number)
       const result = await gateway.systemOne(args.state, args.questions, args.model, extra?.signal);
       return toolResult({ ...result, warnings });
     } catch (err) {
-      return errorResult(describeError(err));
+      return errorResult(describeError(err, { provider: gateway.provider, baseUrl: gateway.baseUrl }));
     }
   };
 }

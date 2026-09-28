@@ -87,8 +87,8 @@ export function makeEvaluateMany(gateway: TypeSafeGateway, maxTokensPerCall: num
         return { id: job.id, sample: job.sample, answers: r.answers, request_id: r.request_id };
       } catch (err) {
         if (isCancellation(err)) return { id: job.id, sample: job.sample, cancelled: true as const };
-        if (isBatchWideError(err) && !stoppedReason) { stoppedReason = describeError(err); stop.abort(); }
-        return { id: job.id, sample: job.sample, error: describeError(err) };
+        if (isBatchWideError(err) && !stoppedReason) { stoppedReason = describeError(err, { provider: gateway.provider, baseUrl: gateway.baseUrl }); stop.abort(); }
+        return { id: job.id, sample: job.sample, error: describeError(err, { provider: gateway.provider, baseUrl: gateway.baseUrl }) };
       }
     }, stop.signal);
     const after = gateway.stats();

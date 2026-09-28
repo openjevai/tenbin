@@ -2,6 +2,8 @@
 
 Key from `TYPESAFE_API_KEY` (read by the clients). Also read from the environment: `TYPESAFE_BASE_URL`, `TYPESAFE_DEFAULT_MODEL`, `TYPESAFE_LOG_LEVEL` (`debug` logs request bodies unredacted; never in production).
 
+**OpenJEV:** This fork also supports [OpenJEV](https://openjev.sh), a free community gateway to the same Jev model. Set `OPENJEV_API_KEY` (or `JEV_PROVIDER=openjev`) to route requests through `https://api.openjev.sh/v1/systemone` with model `openjev`. TypeSafe stays the default; see `OPENJEV.md` for the full selection rule.
+
 ## Python — `typesafe-sdk`, module `typesafe_sdk`
 
 ```python

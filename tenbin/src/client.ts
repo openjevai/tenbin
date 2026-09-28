@@ -12,7 +12,7 @@ import {
   type Logger,
   type ModelCard,
 } from "@typesafe-ai/sdk";
-import { API_LIMITS, type Config } from "./config.js";
+import { API_LIMITS, type Config, type Provider } from "./config.js";
 import { estimateRequestTokens } from "./tokens.js";
 import type { Answer, EvaluateResult, Questions, Usage } from "./types.js";
 
@@ -47,10 +47,13 @@ export class TypeSafeGateway {
 
   constructor(private readonly config: Config, fetchImpl?: Fetch) {
     if (!config.apiKey) {
-      throw new Error("TYPESAFE_API_KEY is not set. Create a key at https://console.typesafe.ai/settings/keys and export it before starting the server.");
+      const keyEnv = config.provider === "openjev" ? "OPENJEV_API_KEY" : "TYPESAFE_API_KEY";
+      const keyUrl = config.provider === "openjev" ? "https://openjev.sh/dashboard" : "https://console.typesafe.ai/settings/keys";
+      throw new Error(`${keyEnv} is not set. Create a key at ${keyUrl} and export it before starting the server.`);
     }
     this.client = new TypeSafeClient({
       apiKey: config.apiKey,
+      baseURL: config.baseUrl,
       defaultModel: config.defaultModel,
       // stdout is the MCP channel and debug logs would include request bodies, so the SDK's
       // env-driven log level is overridden: warnings and errors only, on stderr.
@@ -62,6 +65,14 @@ export class TypeSafeGateway {
 
   get defaultModel(): string {
     return this.config.defaultModel;
+  }
+
+  get provider(): Provider {
+    return this.config.provider;
+  }
+
+  get baseUrl(): string {
+    return this.config.baseUrl;
   }
 
   stats(): SessionStats {
@@ -147,23 +158,27 @@ export function isBatchWideError(err: unknown): boolean {
 }
 
 /** Turns SDK errors into messages that tell the agent what to do next. */
-export function describeError(err: unknown): string {
+export function describeError(err: unknown, ctx?: { provider: Provider; baseUrl: string }): string {
+  const provider = ctx?.provider ?? "typesafe";
+  const keyEnv = provider === "openjev" ? "OPENJEV_API_KEY" : "TYPESAFE_API_KEY";
+  const keyUrl = provider === "openjev" ? "https://openjev.sh/dashboard" : "https://console.typesafe.ai/settings/keys";
+  const apiHost = ctx?.baseUrl ?? "https://api.typesafe.ai";
   if (err instanceof BudgetExceededError || err instanceof CallTooLargeError) return err.message;
   if (isCancellation(err)) return "Request cancelled by the client.";
   if (err instanceof AuthenticationError) {
-    return "TypeSafe rejected the API key (401). Check TYPESAFE_API_KEY; create a key at https://console.typesafe.ai/settings/keys.";
+    return `The API rejected the key (401). Check ${keyEnv}; create a key at ${keyUrl}.`;
   }
   if (err instanceof UnprocessableEntityError) {
-    return `TypeSafe rejected the request body (422): ${JSON.stringify(err.body)}. Run tenbin_lint_questions on the same questions to locate the offending field.`;
+    return `The API rejected the request body (422): ${JSON.stringify(err.body)}. Run tenbin_lint_questions on the same questions to locate the offending field.`;
   }
   if (err instanceof RateLimitError) {
     const wait = err.retryAfterMs ? ` Retry after ${err.retryAfterMs} ms.` : "";
     return `Rate limited (429) after the SDK's automatic retries.${wait} Lower concurrency or split the batch.`;
   }
   if (err instanceof APIError) {
-    return `TypeSafe API error ${err.status}: ${err.message}${err.status >= 500 ? " (temporary; retry shortly)" : ""}`;
+    return `API error ${err.status}: ${err.message}${err.status >= 500 ? " (temporary; retry shortly)" : ""}`;
   }
   if (err instanceof APITimeoutError) return `Request timed out after ${err.timeoutMs} ms. Reduce state size or retry.`;
-  if (err instanceof APIConnectionError) return `Could not reach api.typesafe.ai: ${err.message}. Check network access.`;
+  if (err instanceof APIConnectionError) return `Could not reach ${apiHost}: ${err.message}. Check network access.`;
   return err instanceof Error ? err.message : String(err);
 }

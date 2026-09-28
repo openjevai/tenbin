@@ -91,7 +91,7 @@ class Base(unittest.TestCase):
         self.dir = Path(self.tmp.name)
         self.request = self.dir / "request.json"
         self.request.write_text(json.dumps({"state": {"review": {"text": "broken, refund please", "n": 0}}, "questions": QUESTIONS}))
-        self.env_patch = mock.patch.dict(os.environ, {"TYPESAFE_API_KEY": "good"}, clear=False)
+        self.env_patch = mock.patch.dict(os.environ, {"TYPESAFE_API_KEY": "good", "OPENJEV_API_KEY": "", "JEV_PROVIDER": ""}, clear=False)
         self.env_patch.start()
         os.environ.pop("TYPESAFE_DEFAULT_MODEL", None)
         mock.patch("evaluate.time.sleep", lambda s: None).start()
@@ -375,7 +375,7 @@ class RowsMode(Base):
         self.assertEqual(code, 0)
         self.assertEqual(len(api.requests), 1)
         self.assertIn("ok 0  failed 1  skipped 4", out)
-        self.assertIn("row 0: TypeSafe rejected the API key (401)", out)
+        self.assertIn("row 0: The API rejected the key (401)", out)
 
     def test_422_on_one_row_keeps_the_others(self):
         rows = self.write_rows(3)

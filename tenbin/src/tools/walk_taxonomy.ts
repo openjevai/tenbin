@@ -223,7 +223,7 @@ export function makeWalkTaxonomy(gateway: TypeSafeGateway, maxTokensPerCall: num
         beam = expanded.sort((x, y) => pathScore(y) - pathScore(x)).slice(0, args.beam_width);
       }
     } catch (err) {
-      return errorResult(describeError(err));
+      return errorResult(describeError(err, { provider: gateway.provider, baseUrl: gateway.baseUrl }));
     }
     const all = [...finished, ...beam].map((p) => ({ path: p.path, score: Math.round(pathScore(p) * 10_000) / 10_000, edge_probabilities: p.edge_probabilities.map((x) => Math.round(x * 10_000) / 10_000), complete: children(p.node) === null || (children(p.node)?.length ?? 0) === 0 }))
       .sort((x, y) => y.score - x.score)

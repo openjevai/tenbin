@@ -28,7 +28,7 @@ export function makeListModels(gateway: TypeSafeGateway) {
       const structured = { models, default_model: gateway.defaultModel, pricing: PRICING, note: "Aliases move on new releases; pin a versioned id if you tuned thresholds against it." };
       return toolResult(structured);
     } catch (err) {
-      return errorResult(describeError(err));
+      return errorResult(describeError(err, { provider: gateway.provider, baseUrl: gateway.baseUrl }));
     }
   };
 }

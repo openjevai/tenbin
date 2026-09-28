@@ -88,7 +88,8 @@ Detect API-enabled MCP execution by the presence of `tenbin_evaluate` in the too
 An offline MCP still offers suggestions, state/question and code generation, resources,
 and `tenbin_lint_questions`.
 For a requested evaluation without `tenbin_evaluate`, run the scripts yourself:
-they need only Python 3 and the key in `TYPESAFE_API_KEY` or
+they need only Python 3 and the key in `TYPESAFE_API_KEY` (or `OPENJEV_API_KEY` for
+the OpenJEV gateway) or
 `~/.config/tenbin/env`. `evaluate.py` lints first and refuses on lint errors, like the MCP tool.
 If the key is missing, do not state measured numbers you did not obtain; say what the user
 must set (or run) to get them. `rows.jsonl` is one `{"state": ..., "labels": {"<id>": expected}}`

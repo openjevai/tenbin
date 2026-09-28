@@ -2,6 +2,8 @@
 
 Tenbin (天秤, "balance scale") is an MCP server for the [TypeSafe AI](https://docs.typesafe.ai) System One API (Jev). Lets a coding agent evaluate states with typed Choice / Score / Noul questions, batch-evaluate for threshold calibration, rerank candidates, walk taxonomies, and lint questions offline — with per-call and per-session cost guards.
 
+> **OpenJEV support:** Jev is built by [TypeSafe](https://typesafe.ai). This fork keeps TypeSafe as the default and adds optional support for [OpenJEV](https://openjev.sh), a free community gateway to the same Jev model — set `OPENJEV_API_KEY` (or `JEV_PROVIDER=openjev`) to use it. Original project: https://github.com/simota/tenbin by @simota.
+
 Design notes: [`../docs/03-mcp-server-and-skill-design.md`](../docs/03-mcp-server-and-skill-design.md).
 
 ## Install / run
@@ -10,6 +12,10 @@ Design notes: [`../docs/03-mcp-server-and-skill-design.md`](../docs/03-mcp-serve
 npm install && npm run build
 export TYPESAFE_API_KEY=...        # https://console.typesafe.ai/settings/keys
 node dist/index.js                 # stdio transport
+
+# Or use OpenJEV (free community gateway to the same Jev model):
+# export OPENJEV_API_KEY=...       # https://openjev.sh/dashboard
+# node dist/index.js
 ```
 
 Claude Code:
@@ -117,6 +123,8 @@ Prompts: `tenbin`, `design_integration`, `design_questions`, `decompose_judgment
 | `TENBIN_SESSION_TOKEN_BUDGET` | 20000000 | tokens this process may spend (≈ $0.84) |
 | `TENBIN_CONCURRENCY` | 8 | parallel requests in `evaluate_many` and `rank` (both accept a per-call `concurrency` override) |
 | `TENBIN_MAX_STATES` | 500 | states per `evaluate_many` call |
+| `OPENJEV_API_KEY` | – | optional; key from https://openjev.sh/dashboard for the OpenJEV gateway |
+| `JEV_PROVIDER` | – | optional; `typesafe` (default) or `openjev` |
 
 Token estimates use 4 chars/token over the JSON encoding (conservative) and enforce both API limits (64k total, 32k state + longest question). The session budget counts calls still in flight. Cost is input tokens × $0.042/Mtok; output tokens are free. Request bodies are never logged: the SDK logger is pinned to warn level on stderr regardless of `TYPESAFE_LOG_LEVEL`, because stdout is the MCP channel. A failed batch stops further scheduling in `rank`; in `evaluate_many` a failure that would hit every row (401/403) stops scheduling and reports the rest as `skipped`, while per-state failures (too large, 422) stay in their own row. Client cancellation (MCP abort) stops scheduling further requests in `evaluate_many` and `rank`; in-flight requests are aborted and reported as `cancelled`, not failures.
 

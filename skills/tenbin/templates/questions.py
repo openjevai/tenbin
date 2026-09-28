@@ -2,10 +2,14 @@
 
 Edit here only. Thresholds carry the evidence they were set from; a threshold without
 a dataset line is provisional and must be re-measured before the band is widened.
+
+The model below is for the TypeSafe API (default). To use OpenJEV (a free community
+gateway to the same Jev model), set JEV_PROVIDER=openjev and OPENJEV_API_KEY, or pass
+model="openjev" to TypeSafeClient. See OPENJEV.md for details.
 """
 from typesafe_sdk import Choice, Noul, Score
 
-MODEL = "jev-latest"
+MODEL = "jev-latest"  # TypeSafe default; use "openjev" with the OpenJEV gateway
 
 # --- questions: every question the workflow may need, evaluated in one call ---------------
 QUESTIONS = {

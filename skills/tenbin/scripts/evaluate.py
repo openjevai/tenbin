@@ -40,13 +40,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lint_questions import lint  # noqa: E402
 
 DEFAULT_BASE_URL = "https://api.typesafe.ai"
+OPENJEV_BASE_URL = "https://api.openjev.sh"
 DEFAULT_ENV_FILE = Path.home() / ".config" / "tenbin" / "env"
 PRICE_PER_MTOK_USD = 0.042
 TOTAL_TOKENS = 64_000
 STATE_AND_LONGEST = 32_000
 MAX_ATTEMPTS = 5
 MAX_RETRY_WAIT_S = 60.0  # the official SDKs cap Retry-After at 60 s
-RETRY_STATUSES = {408, 429, 529}  # plus every 5xx, as the official SDK retry policy
+RETRY_STATUSES = {408, 429, 503, 529}  # plus every 5xx, as the official SDK retry policy. 503 = OpenJEV overload.
 TRUE_LABELS = {"1", "true", "yes", "y"}
 
 
@@ -167,12 +168,12 @@ def describe(err: Exception) -> str:
     if isinstance(err, ApiError):
         rid = f" (request {err.request_id})" if err.request_id else ""
         if err.status == 401:
-            return f"TypeSafe rejected the API key (401){rid}. Check TYPESAFE_API_KEY."
+            return f"The API rejected the key (401){rid}. Check your API key."
         if err.status == 422:
-            return f"TypeSafe rejected the request body (422){rid}: {err.body}. Run lint_questions.py on the same questions."
+            return f"The API rejected the request body (422){rid}: {err.body}. Run lint_questions.py on the same questions."
         if err.status == 429:
             return f"Rate limited (429) after {MAX_ATTEMPTS} attempts{rid}. Lower --concurrency."
-        return f"TypeSafe API error {err.status}{rid}: {err.body[:300]}"
+        return f"API error {err.status}{rid}: {err.body[:300]}"
     return str(err)
 
 
@@ -308,19 +309,43 @@ def main() -> None:
     ap.add_argument("--max-rows", type=int, default=500)
     ap.add_argument("--budget-tokens", type=int, default=20_000_000)
     ap.add_argument("--env-file", default=str(DEFAULT_ENV_FILE))
-    ap.add_argument("--base-url", default=os.environ.get("TYPESAFE_BASE_URL", DEFAULT_BASE_URL))
+    ap.add_argument("--base-url", default=None)
     args = ap.parse_args()
 
     env = read_env_file(Path(args.env_file).expanduser())
-    api_key = (os.environ.get("TYPESAFE_API_KEY") or env.get("TYPESAFE_API_KEY") or "").strip()
+
+    # Provider selection: explicit JEV_PROVIDER wins, then TypeSafe if its key is set
+    # (default unchanged), otherwise OpenJEV if only OPENJEV_API_KEY is set.
+    explicit_provider = (os.environ.get("JEV_PROVIDER") or env.get("JEV_PROVIDER") or "").strip().lower()
+    typesafe_key = (os.environ.get("TYPESAFE_API_KEY") or env.get("TYPESAFE_API_KEY") or "").strip()
+    openjev_key = (os.environ.get("OPENJEV_API_KEY") or env.get("OPENJEV_API_KEY") or "").strip()
+
+    use_openjev = explicit_provider == "openjev" or (
+        explicit_provider != "typesafe" and not typesafe_key and bool(openjev_key)
+    )
+
+    if use_openjev:
+        api_key = openjev_key
+        default_base = OPENJEV_BASE_URL
+        default_model = "openjev"
+        key_env_name = "OPENJEV_API_KEY"
+        key_url = "https://openjev.sh/dashboard"
+    else:
+        api_key = typesafe_key
+        default_base = os.environ.get("TYPESAFE_BASE_URL") or env.get("TYPESAFE_BASE_URL") or DEFAULT_BASE_URL
+        default_model = os.environ.get("TYPESAFE_DEFAULT_MODEL") or env.get("TYPESAFE_DEFAULT_MODEL") or "jev-latest"
+        key_env_name = "TYPESAFE_API_KEY"
+        key_url = "https://console.typesafe.ai/settings/keys"
+
     if not api_key:
-        sys.exit(f"TYPESAFE_API_KEY is not set (env or {args.env_file}). Create a key at https://console.typesafe.ai/settings/keys.")
-    model = args.model or os.environ.get("TYPESAFE_DEFAULT_MODEL") or env.get("TYPESAFE_DEFAULT_MODEL") or "jev-latest"
+        sys.exit(f"{key_env_name} is not set (env or {args.env_file}). Create a key at {key_url}.")
+    model = args.model or default_model
+    base_url = args.base_url or default_base
 
     with open(args.request, encoding="utf-8") as fh:
         doc = json.load(fh)
     questions = doc["questions"]
-    client = Client(api_key, doc.get("model") or model, args.base_url, args.budget_tokens)
+    client = Client(api_key, doc.get("model") or model, base_url, args.budget_tokens)
 
     try:
         if args.rows:

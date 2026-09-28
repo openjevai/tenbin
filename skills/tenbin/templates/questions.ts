@@ -1,10 +1,14 @@
 /**
  * All TypeSafe questions, weights and thresholds for <feature> in one file.
  * Edit here only. A threshold without a dataset line is provisional.
+ *
+ * The model below is for the TypeSafe API (default). To use OpenJEV (a free community
+ * gateway to the same Jev model), set JEV_PROVIDER=openjev and OPENJEV_API_KEY.
+ * See OPENJEV.md for details.
  */
 import { choice, noul, score } from "@typesafe-ai/sdk";
 
-export const MODEL = "jev-latest";
+export const MODEL = "jev-latest"; // TypeSafe default; use "openjev" with the OpenJEV gateway
 
 export const QUESTIONS = {
   category: choice("What is this support message about?", {

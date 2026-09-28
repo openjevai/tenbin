@@ -10,9 +10,18 @@ export const API_LIMITS = {
   maxScoreLevels: 10,
 } as const;
 
+const TYPESAFE_BASE_URL = "https://api.typesafe.ai";
+const OPENJEV_BASE_URL = "https://api.openjev.sh";
+const TYPESAFE_DEFAULT_MODEL = "jev-latest";
+const OPENJEV_DEFAULT_MODEL = "openjev";
+
+export type Provider = "typesafe" | "openjev";
+
 export interface Config {
   apiKey: string | undefined;
   defaultModel: string;
+  baseUrl: string;
+  provider: Provider;
   maxTokensPerCall: number;
   sessionTokenBudget: number;
   concurrency: number;
@@ -30,10 +39,36 @@ function intEnv(env: NodeJS.ProcessEnv, name: string, fallback: number): number 
   return n;
 }
 
+/**
+ * Provider selection (TypeSafe stays the default):
+ * 1. Explicit `JEV_PROVIDER` wins (`typesafe` or `openjev`).
+ * 2. Otherwise, if `TYPESAFE_API_KEY` is set → TypeSafe (unchanged default).
+ * 3. Otherwise, if only `OPENJEV_API_KEY` is set → OpenJEV.
+ * Anyone with a TypeSafe key sees zero behaviour change.
+ */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
+  const explicit = env.JEV_PROVIDER?.trim().toLowerCase();
+  const typesafeKey = env.TYPESAFE_API_KEY?.trim() || undefined;
+  const openjevKey = env.OPENJEV_API_KEY?.trim() || undefined;
+
+  const useOpenjev =
+    explicit === "openjev" ||
+    (explicit !== "typesafe" && !typesafeKey && !!openjevKey);
+
+  const provider: Provider = useOpenjev ? "openjev" : "typesafe";
+  const apiKey = useOpenjev ? openjevKey : typesafeKey;
+  const baseUrl = useOpenjev
+    ? OPENJEV_BASE_URL
+    : (env.TYPESAFE_BASE_URL?.trim() || TYPESAFE_BASE_URL);
+  const defaultModel = useOpenjev
+    ? OPENJEV_DEFAULT_MODEL
+    : (env.TYPESAFE_DEFAULT_MODEL?.trim() || TYPESAFE_DEFAULT_MODEL);
+
   return {
-    apiKey: env.TYPESAFE_API_KEY?.trim() || undefined,
-    defaultModel: env.TYPESAFE_DEFAULT_MODEL?.trim() || "jev-latest",
+    apiKey,
+    defaultModel,
+    baseUrl,
+    provider,
     // Never above what the API accepts, whatever the environment says.
     maxTokensPerCall: Math.min(intEnv(env, "TENBIN_MAX_TOKENS_PER_CALL", 60_000), API_LIMITS.totalTokens),
     sessionTokenBudget: intEnv(env, "TENBIN_SESSION_TOKEN_BUDGET", 20_000_000),

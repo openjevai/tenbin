@@ -2,6 +2,8 @@
 
 A repository for **using [TypeSafe AI](https://docs.typesafe.ai)** (System One API, model Jev) **from a coding agent at design time**. It has three parts.
 
+> **OpenJEV support:** Jev is built by [TypeSafe](https://typesafe.ai). This fork keeps TypeSafe as the default and adds optional support for [OpenJEV](https://openjev.sh), a free community gateway to the same Jev model — set `OPENJEV_API_KEY` (or `JEV_PROVIDER=openjev`) to use it. Original project: https://github.com/simota/tenbin by @simota.
+
 | Component | Location | Role |
 |---|---|---|
 | Documentation | [`docs/`](docs/) | Map of the official docs to this repo, workflow diagrams and LLM-integration use cases, design doc, runbook |
@@ -136,6 +138,10 @@ Everything is configured through environment variables. The recommended place fo
 TYPESAFE_API_KEY=...               # required for anything that calls the API
 TYPESAFE_DEFAULT_MODEL=jev-latest  # optional
 TENBIN_CONCURRENCY=8               # optional
+
+# Optional: use OpenJEV (free community gateway to the same Jev model) instead of TypeSafe
+# OPENJEV_API_KEY=...              # get one at https://openjev.sh/dashboard
+# JEV_PROVIDER=openjev            # explicit provider choice; "typesafe" is the default
 ```
 
 The MCP wrapper registered by `make register-claude` sources this file at start-up, and
@@ -151,6 +157,8 @@ key never lands in a shell rc file or in Claude's config. Plain environment vari
 | `TENBIN_SESSION_TOKEN_BUDGET` | `20000000` | Tokens one MCP process may spend (≈ $0.84); `BudgetExceededError` after that |
 | `TENBIN_CONCURRENCY` | `8` | Parallel requests in `evaluate_many` and `rank`; lower it on 429 |
 | `TENBIN_MAX_STATES` | `500` | States per `evaluate_many` call |
+| `OPENJEV_API_KEY` | – | Optional. API key from https://openjev.sh/dashboard for the OpenJEV gateway. Used when `JEV_PROVIDER=openjev` or when `TYPESAFE_API_KEY` is unset |
+| `JEV_PROVIDER` | – | Optional. `typesafe` (default) or `openjev`; explicit choice overrides key-based auto-detection |
 
 `TENBIN_*` values must be positive integers; an invalid value fails at start-up. Change the
 file, then restart the Claude Code session so the MCP picks it up. Never set
